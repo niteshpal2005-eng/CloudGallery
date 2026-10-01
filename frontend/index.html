@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CloudGallery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="navbar-inner">
+      <div class="brand">
+        <span class="brand-mark">☁</span>
+        <span class="brand-name">CloudGallery</span>
+      </div>
+      <span class="brand-tag">Cloud Image Storage</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <h1>Your photos,<br>safely in the cloud.</h1>
+      <p class="hero-sub">Upload, store and manage your images from one simple gallery — backed by AWS S3.</p>
+    </section>
+
+    <section class="upload-section">
+      <div class="upload-card">
+        <label for="imageInput" class="dropzone" id="dropzone">
+          <span class="dropzone-icon">⬆</span>
+          <span class="dropzone-text">Click to choose an image</span>
+          <span class="dropzone-hint" id="fileNameDisplay">PNG or JPG</span>
+        </label>
+        <input type="file" id="imageInput" accept="image/*" multiple hidden />
+
+        <div class="preview-row hidden" id="previewRow">
+        <div class="preview-thumbs" id="previewThumbs"></div>
+        <div class="preview-info">
+        <span id="previewName" class="preview-name"></span>
+        <button id="uploadBtn" class="upload-btn">Upload Images</button>
+       </div>
+       </div>
+
+        <p id="loadingText" class="loading hidden">Uploading…</p>
+      </div>
+    </section>
+
+    <section class="gallery-section">
+      <div class="gallery-header">
+        <h2>My Gallery</h2>
+        <span id="imageCount" class="image-count">0 images</span>
+      </div>
+
+      <div id="emptyMessage" class="empty-state">
+        <span class="empty-icon">🖼</span>
+        <p>No images uploaded yet. Choose a file above to get started.</p>
+      </div>
+
+      <div id="gallery" class="gallery-grid"></div>
+    </section>
+  </main>
+
+  <div class="lightbox hidden" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose" aria-label="Close">✕</button>
+  <img id="lightboxImg" class="lightbox-img" alt="Full size preview" />
+</div>
+
+  <script src="script.js"></script>
+</body>
+</html>
