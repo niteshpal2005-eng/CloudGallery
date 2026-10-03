@@ -1,0 +1,8 @@
+# Dependencies
+node_modules/
+
+# Local uploads (temporary storage before AWS S3)
+backend/uploads/
+
+# Environment variables (we'll use this starting Day 6)
+.env
