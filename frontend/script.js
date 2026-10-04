@@ -1,4 +1,5 @@
 const imageInput = document.getElementById("imageInput");
+const API_URL = "http://localhost:5000/api/images";
 const uploadBtn = document.getElementById("uploadBtn");
 const loadingText = document.getElementById("loadingText");
 const gallery = document.getElementById("gallery");
@@ -30,6 +31,34 @@ lightbox.addEventListener("click", (e) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeLightbox();
 });
+
+
+// Fetch and display all images from the backend
+async function loadGallery() {
+  try {
+    const response = await fetch(API_URL);
+    const images = await response.json();
+
+    gallery.innerHTML = ""; // clear anything currently shown
+    imageTotal = 0;
+
+    if (images.length === 0) {
+      emptyMessage.classList.remove("hidden");
+    } else {
+      emptyMessage.classList.add("hidden");
+      images.forEach((image) => {
+        renderImageCard(image.url, image.filename);
+      });
+    }
+
+    updateImageCount();
+  } catch (error) {
+    console.error("Failed to load images:", error);
+  }
+}
+
+// Load the gallery as soon as the page opens
+loadGallery();
 
 let imageTotal = 0;
 let selectedFiles = [];
@@ -78,8 +107,7 @@ function renderPreviewThumbs() {
   previewName.textContent = `${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"} selected`;
 }
 
-// Upload button (still simulated locally — real backend connects on Day 4)
-uploadBtn.addEventListener("click", () => {
+uploadBtn.addEventListener("click", async () => {
   if (selectedFiles.length === 0) {
     alert("Please choose at least one image first.");
     return;
@@ -87,29 +115,42 @@ uploadBtn.addEventListener("click", () => {
 
   loadingText.classList.remove("hidden");
 
-  setTimeout(() => {
-    selectedFiles.forEach((file) => {
-      addImageToGallery(URL.createObjectURL(file));
-    });
+  try {
+    for (const file of selectedFiles) {
+      const formData = new FormData();
+      formData.append("image", file);
 
+      const response = await fetch(API_URL, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed for " + file.name);
+      }
+    }
+
+    await loadGallery(); // refresh the gallery with the real, updated list from the server
+  } catch (error) {
+    console.error("Upload error:", error);
+    alert("Something went wrong while uploading. Please try again.");
+  } finally {
     loadingText.classList.add("hidden");
     previewRow.classList.add("hidden");
     previewThumbs.innerHTML = "";
     fileNameDisplay.textContent = "PNG or JPG";
     imageInput.value = "";
     selectedFiles = [];
-  }, 600);
+  }
 });
 
-function addImageToGallery(imageURL) {
-  emptyMessage.classList.add("hidden");
-
+function renderImageCard(imageURL, filename) {
   const card = document.createElement("div");
   card.className = "image-card";
-  card.addEventListener("click", () => openLightbox(img.src));
 
   const img = document.createElement("img");
   img.src = imageURL;
+  card.addEventListener("click", () => openLightbox(img.src));
 
   const overlay = document.createElement("div");
   overlay.className = "image-overlay";
@@ -117,14 +158,9 @@ function addImageToGallery(imageURL) {
   const deleteBtn = document.createElement("button");
   deleteBtn.className = "delete-btn";
   deleteBtn.textContent = "Remove";
-    deleteBtn.addEventListener("click", (e) => {
+  deleteBtn.addEventListener("click", async (e) => {
     e.stopPropagation();
-    card.remove();
-    imageTotal--;
-    updateImageCount();
-    if (gallery.children.length === 0) {
-      emptyMessage.classList.remove("hidden");
-    }
+    await deleteImage(filename, card);
   });
 
   overlay.appendChild(deleteBtn);
@@ -133,9 +169,31 @@ function addImageToGallery(imageURL) {
   gallery.appendChild(card);
 
   imageTotal++;
-  updateImageCount();
 }
 
 function updateImageCount() {
   imageCount.textContent = `${imageTotal} image${imageTotal === 1 ? "" : "s"}`;
+}
+
+async function deleteImage(filename, card) {
+  try {
+    const response = await fetch(`${API_URL}/${encodeURIComponent(filename)}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      throw new Error("Delete failed");
+    }
+
+    card.remove();
+    imageTotal--;
+    updateImageCount();
+
+    if (gallery.children.length === 0) {
+      emptyMessage.classList.remove("hidden");
+    }
+  } catch (error) {
+    console.error("Failed to delete image:", error);
+    alert("Could not delete image. Please try again.");
+  }
 }
