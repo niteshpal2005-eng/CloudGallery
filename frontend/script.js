@@ -1,5 +1,5 @@
 const imageInput = document.getElementById("imageInput");
-const API_URL = "http://localhost:5000/api/images";
+const API_URL = "http://18.209.55.167/api/images";
 const uploadBtn = document.getElementById("uploadBtn");
 const loadingText = document.getElementById("loadingText");
 const gallery = document.getElementById("gallery");
