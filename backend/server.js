@@ -26,7 +26,21 @@ const s3 = new S3Client({
 const BUCKET_NAME = process.env.S3_BUCKET_NAME;
 
 // Multer: store the file in memory temporarily, instead of on disk
-const upload = multer({ storage: multer.memoryStorage() });
+// Only these image types are allowed
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
+// Multer: keep the file in memory, limit size to 5 MB, accept images only
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PNG, JPG, GIF and WEBP images are allowed"));
+    }
+  },
+});
 
 // Test route
 app.get("/", (req, res) => {
@@ -96,6 +110,19 @@ app.delete("/api/images/:filename", async (req, res) => {
     console.error("S3 delete error:", error);
     res.status(404).json({ error: "Image not found" });
   }
+});
+
+
+// Error handler: turns upload rejections into clean JSON messages
+app.use((err, req, res, next) => {
+  if (err.code === "LIMIT_FILE_SIZE") {
+    return res.status(413).json({ error: "File too large. Maximum size is 5 MB" });
+  }
+  if (err.message && err.message.startsWith("Only PNG")) {
+    return res.status(400).json({ error: err.message });
+  }
+  console.error("Unexpected error:", err);
+  res.status(500).json({ error: "Something went wrong" });
 });
 
 // Start the server
