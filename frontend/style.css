@@ -440,3 +440,23 @@ main {
 .preview-thumb-remove:hover {
   background-color: #dc2626;
 }
+
+
+/* ===== Day 11: error banner and disabled button ===== */
+.error-banner {
+  margin: 16px 0 0;
+  padding: 10px 14px;
+  background-color: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+.upload-btn:disabled {
+  background-color: var(--border);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+  transform: none;
+}

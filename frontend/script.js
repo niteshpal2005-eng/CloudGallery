@@ -2,6 +2,7 @@ const imageInput = document.getElementById("imageInput");
 const API_URL = "http://18.209.55.167/api/images";
 const uploadBtn = document.getElementById("uploadBtn");
 const loadingText = document.getElementById("loadingText");
+const errorMessage = document.getElementById("errorMessage");
 const gallery = document.getElementById("gallery");
 const emptyMessage = document.getElementById("emptyMessage");
 const fileNameDisplay = document.getElementById("fileNameDisplay");
@@ -14,6 +15,38 @@ const lightbox = document.getElementById("lightbox");
 const lightboxImg = document.getElementById("lightboxImg");
 const lightboxClose = document.getElementById("lightboxClose");
 
+const DEFAULT_HINT = "PNG, JPG, GIF or WEBP · max 5 MB";
+const MAX_SIZE = 5 * 1024 * 1024;
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
+let imageTotal = 0;
+let selectedFiles = [];
+let errorTimer = null;
+
+// ===== Error banner =====
+function showError(message) {
+  errorMessage.textContent = message;
+  errorMessage.classList.remove("hidden");
+  clearTimeout(errorTimer);
+  errorTimer = setTimeout(hideError, 8000); // hides itself after 8 seconds
+}
+
+function hideError() {
+  errorMessage.classList.add("hidden");
+  errorMessage.textContent = "";
+}
+
+// Read the server's JSON error message, or fall back to a default
+async function getServerError(response, fallback) {
+  try {
+    const data = await response.json();
+    return data.error || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+// ===== Lightbox =====
 function openLightbox(src) {
   lightboxImg.src = src;
   lightbox.classList.remove("hidden");
@@ -32,14 +65,16 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeLightbox();
 });
 
-
-// Fetch and display all images from the backend
+// ===== Gallery =====
 async function loadGallery() {
   try {
     const response = await fetch(API_URL);
+    if (!response.ok) {
+      throw new Error(await getServerError(response, "Could not load images"));
+    }
     const images = await response.json();
 
-    gallery.innerHTML = ""; // clear anything currently shown
+    gallery.innerHTML = "";
     imageTotal = 0;
 
     if (images.length === 0) {
@@ -54,19 +89,43 @@ async function loadGallery() {
     updateImageCount();
   } catch (error) {
     console.error("Failed to load images:", error);
+    showError("Could not load your gallery. Check your connection and refresh.");
   }
 }
 
 // Load the gallery as soon as the page opens
 loadGallery();
 
-let imageTotal = 0;
-let selectedFiles = [];
-
-// Show a preview as soon as a file is chosen — before uploading
+// ===== Choosing files =====
 imageInput.addEventListener("change", () => {
-  selectedFiles = Array.from(imageInput.files);
-  if (selectedFiles.length === 0) return;
+  hideError();
+  const chosen = Array.from(imageInput.files);
+  if (chosen.length === 0) return;
+
+  // Check type and size in the browser first (the server checks again)
+  const problems = [];
+  selectedFiles = chosen.filter((file) => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      problems.push(`${file.name}: only PNG, JPG, GIF and WEBP are allowed`);
+      return false;
+    }
+    if (file.size > MAX_SIZE) {
+      problems.push(`${file.name}: larger than 5 MB`);
+      return false;
+    }
+    return true;
+  });
+
+  if (problems.length > 0) {
+    showError("Skipped: " + problems.join("; "));
+  }
+
+  if (selectedFiles.length === 0) {
+    previewRow.classList.add("hidden");
+    fileNameDisplay.textContent = DEFAULT_HINT;
+    imageInput.value = "";
+    return;
+  }
 
   renderPreviewThumbs();
   previewRow.classList.remove("hidden");
@@ -87,15 +146,13 @@ function renderPreviewThumbs() {
     removeBtn.className = "preview-thumb-remove";
     removeBtn.textContent = "✕";
     removeBtn.addEventListener("click", () => {
-      selectedFiles.splice(index, 1); // remove just this one file from the array
-      renderPreviewThumbs(); // rebuild the thumbnail row
+      selectedFiles.splice(index, 1);
+      renderPreviewThumbs();
 
       if (selectedFiles.length === 0) {
         previewRow.classList.add("hidden");
-        fileNameDisplay.textContent = "PNG or JPG";
+        fileNameDisplay.textContent = DEFAULT_HINT;
         imageInput.value = "";
-      } else {
-        previewName.textContent = `${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"} selected`;
       }
     });
 
@@ -107,16 +164,22 @@ function renderPreviewThumbs() {
   previewName.textContent = `${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"} selected`;
 }
 
+// ===== Uploading =====
 uploadBtn.addEventListener("click", async () => {
   if (selectedFiles.length === 0) {
-    alert("Please choose at least one image first.");
+    showError("Please choose at least one image first.");
     return;
   }
 
+  hideError();
+  uploadBtn.disabled = true;
+  uploadBtn.textContent = "Uploading…";
   loadingText.classList.remove("hidden");
 
-  try {
-    for (const file of selectedFiles) {
+  const failures = [];
+
+  for (const file of selectedFiles) {
+    try {
       const formData = new FormData();
       formData.append("image", file);
 
@@ -126,24 +189,32 @@ uploadBtn.addEventListener("click", async () => {
       });
 
       if (!response.ok) {
-        throw new Error("Upload failed for " + file.name);
+        const message = await getServerError(response, "Upload failed");
+        failures.push(`${file.name}: ${message}`);
       }
+    } catch (error) {
+      console.error("Upload error:", error);
+      failures.push(`${file.name}: could not reach the server`);
     }
-
-    await loadGallery(); // refresh the gallery with the real, updated list from the server
-  } catch (error) {
-    console.error("Upload error:", error);
-    alert("Something went wrong while uploading. Please try again.");
-  } finally {
-    loadingText.classList.add("hidden");
-    previewRow.classList.add("hidden");
-    previewThumbs.innerHTML = "";
-    fileNameDisplay.textContent = "PNG or JPG";
-    imageInput.value = "";
-    selectedFiles = [];
   }
+
+  await loadGallery(); // show the real, updated list from the server
+
+  if (failures.length > 0) {
+    showError(failures.join(" | ")); // shown after loadGallery so it isn't cleared
+  }
+
+  uploadBtn.disabled = false;
+  uploadBtn.textContent = "Upload Images";
+  loadingText.classList.add("hidden");
+  previewRow.classList.add("hidden");
+  previewThumbs.innerHTML = "";
+  fileNameDisplay.textContent = DEFAULT_HINT;
+  imageInput.value = "";
+  selectedFiles = [];
 });
 
+// ===== Cards and delete =====
 function renderImageCard(imageURL, filename) {
   const card = document.createElement("div");
   card.className = "image-card";
@@ -182,7 +253,7 @@ async function deleteImage(filename, card) {
     });
 
     if (!response.ok) {
-      throw new Error("Delete failed");
+      throw new Error(await getServerError(response, "Delete failed"));
     }
 
     card.remove();
@@ -194,6 +265,6 @@ async function deleteImage(filename, card) {
     }
   } catch (error) {
     console.error("Failed to delete image:", error);
-    alert("Could not delete image. Please try again.");
+    showError("Could not delete the image. Please try again.");
   }
 }

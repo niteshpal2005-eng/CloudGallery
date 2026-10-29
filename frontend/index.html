@@ -32,7 +32,7 @@
         <label for="imageInput" class="dropzone" id="dropzone">
           <span class="dropzone-icon">⬆</span>
           <span class="dropzone-text">Click to choose an image</span>
-          <span class="dropzone-hint" id="fileNameDisplay">PNG or JPG</span>
+          <span class="dropzone-hint" id="fileNameDisplay">PNG, JPG, GIF or WEBP · max 5 MB</span>
         </label>
         <input type="file" id="imageInput" accept="image/*" multiple hidden />
 
@@ -45,6 +45,7 @@
        </div>
 
         <p id="loadingText" class="loading hidden">Uploading…</p>
+        <p id="errorMessage" class="error-banner hidden" role="alert"></p>
       </div>
     </section>
 
